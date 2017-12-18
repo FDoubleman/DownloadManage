@@ -44,7 +44,9 @@ public class DownloadManager {
 
     private static DownloadManager instance;
     private final BaseHttpClient mClient;
+    //回调
     private HashMap<String, Call> downCalls = new HashMap<>();
+    private HashMap<String, DownloadSubscribe> mSubscribeMap = new HashMap<>();
 
     public static DownloadManager getInstance() {
         if (instance == null) {
@@ -58,7 +60,6 @@ public class DownloadManager {
     }
 
     public void download(String url, DownLoadObserver loadObserver) {
-
         Observable.just(url)
                 .filter(new Predicate<String>() {//call的map已经有了,就证明正在下载,则这次不下载
                     @Override
@@ -82,6 +83,9 @@ public class DownloadManager {
                     @Override
                     public ObservableSource<DownloadInfo> apply(DownloadInfo downloadInfo) throws Exception {
                         DownloadSubscribe subscribe = new DownloadSubscribe(downloadInfo);
+                        //保存SubscribeMap
+                        mSubscribeMap.put(downloadInfo.getUrl(),subscribe);
+
                         return Observable.create(subscribe);
                     }
                 })
@@ -157,6 +161,9 @@ public class DownloadManager {
     private class DownloadSubscribe implements ObservableOnSubscribe<DownloadInfo> {
         private DownloadInfo downloadInfo;
 
+        public void setPause(){
+            downloadInfo.setStatus(STATUS_PAUSE);
+        }
         public DownloadSubscribe(DownloadInfo downloadInfo) {
             this.downloadInfo = downloadInfo;
         }
@@ -189,10 +196,19 @@ public class DownloadManager {
                 while ((len = is.read(buffer)) != -1) {
                     fileOutputStream.write(buffer, 0, len);
                     downloadLength += len;
+                    if(downloadInfo.getStatus() ==STATUS_PAUSE){//暂停
+                        //跳出循环
+                        break;
+                    }
                     downloadInfo.setCurrentSize(downloadLength);
                     e.onNext(downloadInfo);
                 }
                 fileOutputStream.flush();
+
+                //暂停下载
+                if (downloadInfo.getStatus() ==STATUS_PAUSE) {
+                    call.cancel();//取消
+                }
                 downCalls.remove(url);
             } finally {
                 //关闭IO流
@@ -213,20 +229,27 @@ public class DownloadManager {
             call.cancel();//取消
         }
         downCalls.remove(url);
-
-
     }
 
     /**
      * 取消下载
      * @param url
      */
-    public void cancel(String url) {
-        Call call = downCalls.get(url);
-        if (call != null) {
-            call.cancel();//取消
+    public void cancel(final String url) {
+        //取消读流
+        DownloadSubscribe subscribe = mSubscribeMap.get(url);
+        if(subscribe!=null){
+            subscribe.setPause();
         }
-        downCalls.remove(url);
+        mSubscribeMap.remove(url);
+
+
+//        Call call = downCalls.get(url);
+//        if (call != null) {
+//            call.cancel();//取消
+//        }
+//        downCalls.remove(url);
+
     }
 
     /**
@@ -301,7 +324,7 @@ public class DownloadManager {
             call.enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-
+                    Log.d("wdedu", "onFailure：bytesRead-->");
                 }
 
                 @Override
