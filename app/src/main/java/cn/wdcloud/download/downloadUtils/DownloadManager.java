@@ -207,8 +207,9 @@ public class DownloadManager {
 
                 //暂停下载
                 if (downloadInfo.getStatus() ==STATUS_PAUSE) {
-                    call.cancel();//取消
+                    //call.cancel();//取消
                 }
+                call.cancel();//取消
                 downCalls.remove(url);
             } finally {
                 //关闭IO流
@@ -234,6 +235,7 @@ public class DownloadManager {
     public void cancel(final String url) {
         stopDownload(url);
         //TODO do else db
+
     }
 
     //停止下载
