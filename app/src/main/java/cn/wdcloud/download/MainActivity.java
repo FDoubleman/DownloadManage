@@ -141,13 +141,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.btn_cancle_1:
-                DownloadManager.getInstance().cancel(url1);
+                DownloadManager.getInstance().pause(url1);
                 break;
             case R.id.btn_cancle_2:
-                DownloadManager.getInstance().cancel(url2);
+                DownloadManager.getInstance().pause(url2);
                 break;
             case R.id.btn_cancle_3:
-                DownloadManager.getInstance().cancel(url3);
+                DownloadManager.getInstance().pause(url3);
                 break;
             default:
                 break;

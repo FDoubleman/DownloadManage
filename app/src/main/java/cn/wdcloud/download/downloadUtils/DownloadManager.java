@@ -161,8 +161,8 @@ public class DownloadManager {
     private class DownloadSubscribe implements ObservableOnSubscribe<DownloadInfo> {
         private DownloadInfo downloadInfo;
 
-        public void setPause(){
-            downloadInfo.setStatus(STATUS_PAUSE);
+        public void setStatus(int status){
+            downloadInfo.setStatus(status);
         }
         public DownloadSubscribe(DownloadInfo downloadInfo) {
             this.downloadInfo = downloadInfo;
@@ -213,7 +213,6 @@ public class DownloadManager {
             } finally {
                 //关闭IO流
                 IOUtil.closeAll(is, fileOutputStream);
-
             }
             e.onComplete();//完成
         }
@@ -224,11 +223,8 @@ public class DownloadManager {
      * @param url
      */
     public void pause(String url) {
-        Call call = downCalls.get(url);
-        if (call != null) {
-            call.cancel();//取消
-        }
-        downCalls.remove(url);
+        stopDownload(url);
+        //TODO do else db
     }
 
     /**
@@ -236,20 +232,18 @@ public class DownloadManager {
      * @param url
      */
     public void cancel(final String url) {
-        //取消读流
+        stopDownload(url);
+        //TODO do else db
+    }
+
+    //停止下载
+    private void stopDownload(String url){
+        //取消读写流
         DownloadSubscribe subscribe = mSubscribeMap.get(url);
         if(subscribe!=null){
-            subscribe.setPause();
+            subscribe.setStatus(STATUS_PAUSE);
         }
         mSubscribeMap.remove(url);
-
-
-//        Call call = downCalls.get(url);
-//        if (call != null) {
-//            call.cancel();//取消
-//        }
-//        downCalls.remove(url);
-
     }
 
     /**
