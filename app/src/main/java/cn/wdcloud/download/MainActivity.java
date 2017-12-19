@@ -1,15 +1,15 @@
 package cn.wdcloud.download;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
 
 import cn.wdcloud.download.downloadUtils.DownLoadObserver;
-import cn.wdcloud.download.downloadUtils.DownloadInfo;
 import cn.wdcloud.download.downloadUtils.DownloadManager;
+import cn.wdcloud.download.downloadUtils.db.DownloadBean;
 import io.reactivex.disposables.Disposable;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
@@ -58,12 +58,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onNext(DownloadInfo downloadInfo) {
-                        super.onNext(downloadInfo);
-                        Log.e("onNext1:","TotalSize:---"+downloadInfo.getTotalSize()
-                                +"----CurrentSize----"+downloadInfo.getCurrentSize());
-                        mBp1.setMax((int) downloadInfo.getTotalSize());
-                        mBp1.setProgress((int) downloadInfo.getCurrentSize());
+                    public void onNext(DownloadBean downloadbean) {
+                        super.onNext(downloadbean);
+                        Log.e("onNext1:","TotalSize:---"+downloadbean.getTotalSize()
+                                +"----CurrentSize----"+downloadbean.getCurrentSize());
+                        mBp1.setMax((int) downloadbean.getTotalSize());
+                        mBp1.setProgress((int) downloadbean.getCurrentSize());
                     }
 
                     @Override
@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     public void onComplete() {
                         super.onComplete();
 
-                        Log.e("onComplete:","下载成功："+downloadInfo.getCurrentSize());
+                        Log.e("onComplete:","下载成功："+downloadbean.getCurrentSize());
                     }
                 });
                 break;
@@ -88,12 +88,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onNext(DownloadInfo downloadInfo) {
-                        super.onNext(downloadInfo);
-                        Log.e("onNext2:","TotalSize:---"+downloadInfo.getTotalSize()
-                                +"----CurrentSize----"+downloadInfo.getCurrentSize());
-                        mBp2.setMax((int) downloadInfo.getTotalSize());
-                        mBp2.setProgress((int) downloadInfo.getCurrentSize());
+                    public void onNext(DownloadBean downloadbean) {
+                        super.onNext(downloadbean);
+                        Log.e("onNext2:","TotalSize:---"+downloadbean.getTotalSize()
+                                +"----CurrentSize----"+downloadbean.getCurrentSize());
+                        mBp2.setMax((int) downloadbean.getTotalSize());
+                        mBp2.setProgress((int) downloadbean.getCurrentSize());
                     }
 
                     @Override
@@ -106,7 +106,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     public void onComplete() {
                         super.onComplete();
 
-                        Log.e("onComplete:","下载成功："+downloadInfo.getCurrentSize());
+                        Log.e("onComplete:","下载成功："+downloadbean.getCurrentSize());
                     }
                 });
                 break;
@@ -118,12 +118,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
 
                     @Override
-                    public void onNext(DownloadInfo downloadInfo) {
-                        super.onNext(downloadInfo);
-                        Log.e("onNext3:","TotalSize:---"+downloadInfo.getTotalSize()
-                                +"----CurrentSize----"+downloadInfo.getCurrentSize());
-                        mBp3.setMax((int) downloadInfo.getTotalSize());
-                        mBp3.setProgress((int) downloadInfo.getCurrentSize());
+                    public void onNext(DownloadBean downloadbean) {
+                        super.onNext(downloadbean);
+                        Log.e("onNext3:","TotalSize:---"+downloadbean.getTotalSize()
+                                +"----CurrentSize----"+downloadbean.getCurrentSize());
+                        mBp3.setMax((int) downloadbean.getTotalSize());
+                        mBp3.setProgress((int) downloadbean.getCurrentSize());
                     }
 
                     @Override
@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onComplete() {
                         super.onComplete();
-                        Log.e("onComplete:","下载成功："+downloadInfo.getCurrentSize());
+                        Log.e("onComplete:","下载成功："+downloadbean.getCurrentSize());
                     }
                 });
                 break;

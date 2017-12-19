@@ -1,5 +1,5 @@
 apply plugin: 'com.android.application'
-
+apply plugin: 'org.greenrobot.greendao' // apply plugin
 android {
     compileSdkVersion 26
     defaultConfig {
@@ -31,4 +31,6 @@ dependencies {
     //RxJava和RxAndroid 用来做线程切换的
     compile 'io.reactivex.rxjava2:rxandroid:2.0.1'
     compile 'io.reactivex.rxjava2:rxjava:2.0.1'
+    // 下载数据库 greendao
+    compile 'org.greenrobot:greendao:3.2.2' // add library
 }

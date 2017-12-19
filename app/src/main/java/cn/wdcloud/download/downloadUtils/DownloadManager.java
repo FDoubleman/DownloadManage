@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 
 import cn.wdcloud.download.MyApp;
+import cn.wdcloud.download.downloadUtils.db.DownloadBean;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
@@ -67,24 +68,24 @@ public class DownloadManager {
                         return !downCalls.containsKey(s);
                     }
                 })
-                .flatMap(new Function<String, ObservableSource<DownloadInfo>>() {
+                .flatMap(new Function<String, ObservableSource<DownloadBean>>() {
                     @Override
-                    public ObservableSource<DownloadInfo> apply(String s) throws Exception {
+                    public ObservableSource<DownloadBean> apply(String s) throws Exception {
                         return Observable.just(createDownInfo(s));
                     }
                 })
-                .map(new Function<DownloadInfo, DownloadInfo>() {//检测本地文件夹,生成新的文件名
+                .map(new Function<DownloadBean, DownloadBean>() {//检测本地文件夹,生成新的文件名
                     @Override
-                    public DownloadInfo apply(DownloadInfo downloadInfo) throws Exception {
-                        return getRealFileName(downloadInfo);
+                    public DownloadBean apply(DownloadBean downloadbean) throws Exception {
+                        return getRealFileName(downloadbean);
                     }
                 })
-                .flatMap(new Function<DownloadInfo, ObservableSource<DownloadInfo>>() {//下载
+                .flatMap(new Function<DownloadBean, ObservableSource<DownloadBean>>() {//下载
                     @Override
-                    public ObservableSource<DownloadInfo> apply(DownloadInfo downloadInfo) throws Exception {
-                        DownloadSubscribe subscribe = new DownloadSubscribe(downloadInfo);
+                    public ObservableSource<DownloadBean> apply(DownloadBean downloadbean) throws Exception {
+                        DownloadSubscribe subscribe = new DownloadSubscribe(downloadbean);
                         //保存SubscribeMap
-                        mSubscribeMap.put(downloadInfo.getUrl(),subscribe);
+                        mSubscribeMap.put(downloadbean.getUrl(),subscribe);
 
                         return Observable.create(subscribe);
                     }
@@ -94,35 +95,128 @@ public class DownloadManager {
                 .subscribe(loadObserver);//添加观察者
     }
 
+
+    private class DownloadSubscribe implements ObservableOnSubscribe<DownloadBean> {
+        private DownloadBean downloadbean;
+
+        public void setStatus(int status){
+            downloadbean.setStatus(status);
+        }
+        public DownloadSubscribe(DownloadBean downloadbean) {
+            this.downloadbean = downloadbean;
+        }
+
+        @Override
+        public void subscribe(ObservableEmitter<DownloadBean> e) throws Exception {
+            String url = downloadbean.getUrl();
+            long downloadLength = downloadbean.getCurrentSize();//已经下载好的长度
+            long contentLength = downloadbean.getTotalSize();//文件的总长度
+            //初始进度信息
+            e.onNext(downloadbean);
+
+            Request request = new Request.Builder()
+                    //确定下载的范围,添加此头,则服务器就可以跳过已经下载好的部分
+                    .addHeader("RANGE", "bytes=" + downloadLength + "-" )
+                    .url(url)
+                    .build();
+            Call call = mClient.newCall(request);
+            downCalls.put(url, call);//把这个添加到call里,方便取消
+            Response response = call.execute();
+
+            File file = new File(downloadbean.getFilePath());
+            InputStream is = null;
+            FileOutputStream fileOutputStream = null;
+            try {
+                is = response.body().byteStream();
+                fileOutputStream = new FileOutputStream(file, true);
+                byte[] buffer = new byte[2048];//缓冲数组2kB
+                int len;
+                while ((len = is.read(buffer)) != -1) {
+                    fileOutputStream.write(buffer, 0, len);
+                    downloadLength += len;
+                    if(downloadbean.getStatus() ==STATUS_PAUSE){//暂停
+                        //跳出循环
+                        break;
+                    }
+                    downloadbean.setCurrentSize(downloadLength);
+                    e.onNext(downloadbean);
+                }
+                fileOutputStream.flush();
+
+                //暂停下载
+                if (downloadbean.getStatus() ==STATUS_PAUSE) {
+                    call.cancel();//取消
+                }
+                downCalls.remove(url);
+            } finally {
+                //关闭IO流
+                IOUtil.closeAll(is, fileOutputStream);
+            }
+            e.onComplete();//完成
+        }
+    }
+
+    /**
+     * 暂停下载
+     * @param url
+     */
+    public void pause(String url) {
+        stopDownload(url);
+        //TODO do else db
+
+    }
+
+    /**
+     * 取消下载
+     * @param url
+     */
+    public void cancel(final String url) {
+        stopDownload(url);
+        //TODO do else db
+
+    }
+
+    //停止下载
+    private void stopDownload(String url){
+        //取消读写流
+        DownloadSubscribe subscribe = mSubscribeMap.get(url);
+        if(subscribe!=null){
+            subscribe.setStatus(STATUS_PAUSE);
+        }
+        mSubscribeMap.remove(url);
+    }
+
+
+
     /**
      * 创建DownInfo
      *
      * @param url 请求网址
      * @return DownInfo
      */
-    private DownloadInfo createDownInfo(String url) {
-        DownloadInfo downloadInfo = new DownloadInfo();
+    private DownloadBean createDownInfo(String url) {
+        DownloadBean downloadbean = new DownloadBean();
 
         long contentLength = getContentLength(url);
         String fileName = getFileName(url);
 
-        downloadInfo.setUrl(url);
-        downloadInfo.setTotalSize(contentLength);
-        downloadInfo.setFileName(fileName);
-        downloadInfo.setStatus(STATUS_WAITING);
+        downloadbean.setUrl(url);
+        downloadbean.setTotalSize(contentLength);
+        downloadbean.setFileName(fileName);
+        downloadbean.setStatus(STATUS_WAITING);
 
-        return downloadInfo;
+        return downloadbean;
     }
 
     /**
      * 获得文件真正的下载地址
      *
-     * @param downloadInfo
+     * @param downloadbean
      * @return
      */
-    private DownloadInfo getRealFileName(DownloadInfo downloadInfo) {
-        String fileName = downloadInfo.getFileName();
-        long downloadLength = 0, contentLength = downloadInfo.getTotalSize();
+    private DownloadBean getRealFileName(DownloadBean downloadbean) {
+        String fileName = downloadbean.getFileName();
+        long downloadLength = 0, contentLength = downloadbean.getTotalSize();
 
         String packagePath = MyApp.sContext
                 .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
@@ -150,102 +244,11 @@ public class DownloadManager {
             i++;
         }
         //设置改变过的文件名/大小
-        downloadInfo.setCurrentSize(downloadLength);
-        downloadInfo.setFileName(file.getName());
-        downloadInfo.setFilePath(file.getAbsolutePath());
+        downloadbean.setCurrentSize(downloadLength);
+        downloadbean.setFileName(file.getName());
+        downloadbean.setFilePath(file.getAbsolutePath());
         Log.e("getRealFileName---->",file.getAbsolutePath());
-        return downloadInfo;
-    }
-
-
-    private class DownloadSubscribe implements ObservableOnSubscribe<DownloadInfo> {
-        private DownloadInfo downloadInfo;
-
-        public void setStatus(int status){
-            downloadInfo.setStatus(status);
-        }
-        public DownloadSubscribe(DownloadInfo downloadInfo) {
-            this.downloadInfo = downloadInfo;
-        }
-
-        @Override
-        public void subscribe(ObservableEmitter<DownloadInfo> e) throws Exception {
-            String url = downloadInfo.getUrl();
-            long downloadLength = downloadInfo.getCurrentSize();//已经下载好的长度
-            long contentLength = downloadInfo.getTotalSize();//文件的总长度
-            //初始进度信息
-            e.onNext(downloadInfo);
-
-            Request request = new Request.Builder()
-                    //确定下载的范围,添加此头,则服务器就可以跳过已经下载好的部分
-                    .addHeader("RANGE", "bytes=" + downloadLength + "-" )
-                    .url(url)
-                    .build();
-            Call call = mClient.newCall(request);
-            downCalls.put(url, call);//把这个添加到call里,方便取消
-            Response response = call.execute();
-
-            File file = new File(downloadInfo.getFilePath());
-            InputStream is = null;
-            FileOutputStream fileOutputStream = null;
-            try {
-                is = response.body().byteStream();
-                fileOutputStream = new FileOutputStream(file, true);
-                byte[] buffer = new byte[2048];//缓冲数组2kB
-                int len;
-                while ((len = is.read(buffer)) != -1) {
-                    fileOutputStream.write(buffer, 0, len);
-                    downloadLength += len;
-                    if(downloadInfo.getStatus() ==STATUS_PAUSE){//暂停
-                        //跳出循环
-                        break;
-                    }
-                    downloadInfo.setCurrentSize(downloadLength);
-                    e.onNext(downloadInfo);
-                }
-                fileOutputStream.flush();
-
-                //暂停下载
-                if (downloadInfo.getStatus() ==STATUS_PAUSE) {
-                    //call.cancel();//取消
-                }
-                call.cancel();//取消
-                downCalls.remove(url);
-            } finally {
-                //关闭IO流
-                IOUtil.closeAll(is, fileOutputStream);
-            }
-            e.onComplete();//完成
-        }
-    }
-
-    /**
-     * 取消下载
-     * @param url
-     */
-    public void pause(String url) {
-        stopDownload(url);
-        //TODO do else db
-    }
-
-    /**
-     * 取消下载
-     * @param url
-     */
-    public void cancel(final String url) {
-        stopDownload(url);
-        //TODO do else db
-
-    }
-
-    //停止下载
-    private void stopDownload(String url){
-        //取消读写流
-        DownloadSubscribe subscribe = mSubscribeMap.get(url);
-        if(subscribe!=null){
-            subscribe.setStatus(STATUS_PAUSE);
-        }
-        mSubscribeMap.remove(url);
+        return downloadbean;
     }
 
     /**
@@ -286,23 +289,24 @@ public class DownloadManager {
 
 
 
+
     //测试区-------------------------------------------------------------
     //    下载块大小
     private static final int chunk_size = 512 * 1024;
-    private class DownloadSubscribe2 implements ObservableOnSubscribe<DownloadInfo> {
-        private DownloadInfo downloadInfo;
+    private class DownloadSubscribe2 implements ObservableOnSubscribe<DownloadBean> {
+        private DownloadBean downloadbean;
 
-        public DownloadSubscribe2(DownloadInfo downloadInfo) {
-            this.downloadInfo = downloadInfo;
+        public DownloadSubscribe2(DownloadBean downloadbean) {
+            this.downloadbean = downloadbean;
         }
 
         @Override
-        public void subscribe(final ObservableEmitter<DownloadInfo> e) throws Exception {
-            final String url = downloadInfo.getUrl();
-            long downloadLength = downloadInfo.getCurrentSize();//已经下载好的长度
-            long contentLength = downloadInfo.getTotalSize();//文件的总长度
+        public void subscribe(final ObservableEmitter<DownloadBean> e) throws Exception {
+            final String url = downloadbean.getUrl();
+            long downloadLength = downloadbean.getCurrentSize();//已经下载好的长度
+            long contentLength = downloadbean.getTotalSize();//文件的总长度
             //初始进度信息
-            e.onNext(downloadInfo);
+            e.onNext(downloadbean);
 
 //            Request request = new Request.Builder()
 //                    //确定下载的范围,添加此头,则服务器就可以跳过已经下载好的部分
@@ -325,18 +329,18 @@ public class DownloadManager {
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
-                    File file = new File(downloadInfo.getFilePath());
+                    File file = new File(downloadbean.getFilePath());
 
                     ResponseBody responseBody = response.body();
                     BufferedSource source = responseBody.source();
 
                     BufferedSink sink = null;
-                    if (downloadInfo.getCurrentSize() > 0) {//已经下载
+                    if (downloadbean.getCurrentSize() > 0) {//已经下载
                         sink = Okio.buffer(Okio.appendingSink(file));
                     } else {
                         sink = Okio.buffer(Okio.sink(file));
                     }
-                    long bytesRead = downloadInfo.getCurrentSize(), chunk = 0;
+                    long bytesRead = downloadbean.getCurrentSize(), chunk = 0;
                     //9、read buff
                     while ((chunk = source.read(sink.buffer(), chunk_size)) != -1) {
                         sink.emit();
