@@ -10,18 +10,18 @@ import org.greenrobot.greendao.annotation.Generated;
 @Entity
 public class DownloadBean {
     @Id(autoincrement = true)
-    private long id;
+    private Long id;
     private String url;//下载地址
-    private long totalSize =0L;//下载大小
-    private long currentSize=0L;//已下载大小
+    private Long totalSize =0L;//下载大小
+    private Long currentSize=0L;//已下载大小
     private int progress=0;//进度
     private int status ;//下载状态
     private String filePath;//本地文件路径
     private String fileName;//文件名称
     private String startTime;//开始时间
 
-    @Generated(hash = 1148040777)
-    public DownloadBean(long id, String url, long totalSize, long currentSize,
+    @Generated(hash = 13571938)
+    public DownloadBean(Long id, String url, Long totalSize, Long currentSize,
             int progress, int status, String filePath, String fileName,
             String startTime) {
         this.id = id;
@@ -90,6 +90,15 @@ public class DownloadBean {
     }
     public void setStartTime(String startTime) {
         this.startTime = startTime;
+    }
+    public void setId(Long id) {
+        this.id = id;
+    }
+    public void setTotalSize(Long totalSize) {
+        this.totalSize = totalSize;
+    }
+    public void setCurrentSize(Long currentSize) {
+        this.currentSize = currentSize;
     }
     
 }

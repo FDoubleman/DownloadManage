@@ -89,6 +89,11 @@ public class DBInterface {
         return dao.insertOrReplace(downloadBean);
     }
 
+    public long insert(DownloadBean downloadBean) {
+        DownloadBeanDao dao = openWritableDb().getDownloadBeanDao();
+        return dao.insert(downloadBean);
+    }
+
     /**
      * 删全部
      */
