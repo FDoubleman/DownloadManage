@@ -109,6 +109,19 @@ public class DBInterface {
     }
 
     /**
+     * 根据Url 查询对象
+     * @param url
+     * @return
+     */
+    public DownloadBean qureByUrl(String url){
+        DownloadBeanDao dao= openReadAbleDb().getDownloadBeanDao();
+        DownloadBean bean = dao.queryBuilder()
+                .where(DownloadBeanDao.Properties.Url.eq(url))
+                .unique();
+        return bean;
+    }
+
+    /**
      * 查询全部
      */
     public List<DownloadBean> qureAll(){
@@ -124,6 +137,7 @@ public class DBInterface {
         DownloadBeanDao dao = openReadAbleDb().getDownloadBeanDao();
         Query<DownloadBean> query =dao.queryBuilder()
                 .where(DownloadBeanDao.Properties.Status.eq(STATUS_SUCCESS))
+                .orderDesc(DownloadBeanDao.Properties.StartTime)
                 .build();
         return query.list();
     }
@@ -135,8 +149,17 @@ public class DBInterface {
         DownloadBeanDao dao = openReadAbleDb().getDownloadBeanDao();
         Query<DownloadBean> query =dao.queryBuilder()
                 .where(DownloadBeanDao.Properties.Status.notEq(STATUS_SUCCESS))
+                .orderDesc(DownloadBeanDao.Properties.StartTime)
                 .build();
         return query.list();
     }
 
+
+    public DownloadBean qureFistWaiting(){
+        DownloadBeanDao dao = openReadAbleDb().getDownloadBeanDao();
+        DownloadBean bean =dao.queryBuilder()
+                .where(DownloadBeanDao.Properties.Status.eq(STATUS_WAITING))
+                .orderDesc(DownloadBeanDao.Properties.StartTime).unique();
+        return bean;
+    }
 }

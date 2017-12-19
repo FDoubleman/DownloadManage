@@ -1,6 +1,7 @@
 package cn.wdcloud.download.downloadUtils;
 
 import android.os.Environment;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
@@ -10,6 +11,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 
 import cn.wdcloud.download.MyApp;
+import cn.wdcloud.download.downloadUtils.db.DBInterface;
 import cn.wdcloud.download.downloadUtils.db.DownloadBean;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
@@ -58,9 +60,30 @@ public class DownloadManager {
 
     public DownloadManager() {
         mClient = new BaseHttpClient();
+        //初始化数据库
+        DBInterface.getInstance().initDBHelp();
     }
 
+    public void addDownload(String url, DownLoadObserver loadObserver) {
+        //1、校验url
+        if (TextUtils.isEmpty(url) || !url.startsWith("http")) {
+            Log.e("addDownload", "下载url错误!");
+            return;
+        }
+        //2、从数据库获得 判断是否下载过
+        DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
+        if (bean == null) {//已下载
+
+        } else {//未下载
+
+        }
+
+        download(url, loadObserver);
+    }
+
+
     public void download(String url, DownLoadObserver loadObserver) {
+
         Observable.just(url)
                 .filter(new Predicate<String>() {//call的map已经有了,就证明正在下载,则这次不下载
                     @Override
@@ -85,8 +108,9 @@ public class DownloadManager {
                     public ObservableSource<DownloadBean> apply(DownloadBean downloadbean) throws Exception {
                         DownloadSubscribe subscribe = new DownloadSubscribe(downloadbean);
                         //保存SubscribeMap
-                        mSubscribeMap.put(downloadbean.getUrl(),subscribe);
-
+                        mSubscribeMap.put(downloadbean.getUrl(), subscribe);
+                        //添加下载至数据库
+                        DBInterface.getInstance().insertOrUpdate(downloadbean);
                         return Observable.create(subscribe);
                     }
                 })
@@ -99,9 +123,10 @@ public class DownloadManager {
     private class DownloadSubscribe implements ObservableOnSubscribe<DownloadBean> {
         private DownloadBean downloadbean;
 
-        public void setStatus(int status){
+        public void setStatus(int status) {
             downloadbean.setStatus(status);
         }
+
         public DownloadSubscribe(DownloadBean downloadbean) {
             this.downloadbean = downloadbean;
         }
@@ -114,9 +139,11 @@ public class DownloadManager {
             //初始进度信息
             e.onNext(downloadbean);
 
+            updataDownloadbean(downloadbean, STATUS_RUNNING);
+
             Request request = new Request.Builder()
                     //确定下载的范围,添加此头,则服务器就可以跳过已经下载好的部分
-                    .addHeader("RANGE", "bytes=" + downloadLength + "-" )
+                    .addHeader("RANGE", "bytes=" + downloadLength + "-")
                     .url(url)
                     .build();
             Call call = mClient.newCall(request);
@@ -134,59 +161,87 @@ public class DownloadManager {
                 while ((len = is.read(buffer)) != -1) {
                     fileOutputStream.write(buffer, 0, len);
                     downloadLength += len;
-                    if(downloadbean.getStatus() ==STATUS_PAUSE){//暂停
+                    downloadbean.setCurrentSize(downloadLength);
+                    //更新数据库
+                    DBInterface.getInstance().insertOrUpdate(downloadbean);
+                    if (downloadbean.getStatus() == STATUS_PAUSE) {//暂停
                         //跳出循环
                         break;
                     }
-                    downloadbean.setCurrentSize(downloadLength);
                     e.onNext(downloadbean);
                 }
                 fileOutputStream.flush();
 
                 //暂停下载
-                if (downloadbean.getStatus() ==STATUS_PAUSE) {
+                if (downloadbean.getStatus() == STATUS_PAUSE) {
                     call.cancel();//取消
                 }
                 downCalls.remove(url);
             } finally {
                 //关闭IO流
                 IOUtil.closeAll(is, fileOutputStream);
+
+                updataDownloadbean(downloadbean, STATUS_EXCAPTION);
+                DBInterface.getInstance().insertOrUpdate(downloadbean);
+
             }
-            e.onComplete();//完成
+            //此时还是处于下载进行状态
+            if (downloadbean.getStatus() == STATUS_RUNNING) {
+                updataDownloadbean(downloadbean, STATUS_SUCCESS);
+                DBInterface.getInstance().insertOrUpdate(downloadbean);
+            }
+            e.onComplete();
         }
     }
 
     /**
      * 暂停下载
+     *
      * @param url
      */
     public void pause(String url) {
         stopDownload(url);
         //TODO do else db
+        DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
+        updataDownloadbean(bean, STATUS_PAUSE);
 
     }
 
     /**
      * 取消下载
+     *
      * @param url
      */
     public void cancel(final String url) {
         stopDownload(url);
         //TODO do else db
+        DBInterface.getInstance().deleteByUrl(url);
 
     }
 
     //停止下载
-    private void stopDownload(String url){
+    private void stopDownload(String url) {
         //取消读写流
         DownloadSubscribe subscribe = mSubscribeMap.get(url);
-        if(subscribe!=null){
+        if (subscribe != null) {
             subscribe.setStatus(STATUS_PAUSE);
         }
         mSubscribeMap.remove(url);
     }
 
-
+    /**
+     * 更新数据库
+     *
+     * @param bean
+     * @param status
+     */
+    public void updataDownloadbean(DownloadBean bean, int status) {
+        if (bean == null) {
+            return;
+        }
+        bean.setStatus(status);
+        DBInterface.getInstance().insertOrUpdate(bean);
+    }
 
     /**
      * 创建DownInfo
@@ -204,7 +259,6 @@ public class DownloadManager {
         downloadbean.setTotalSize(contentLength);
         downloadbean.setFileName(fileName);
         downloadbean.setStatus(STATUS_WAITING);
-
         return downloadbean;
     }
 
@@ -247,7 +301,8 @@ public class DownloadManager {
         downloadbean.setCurrentSize(downloadLength);
         downloadbean.setFileName(file.getName());
         downloadbean.setFilePath(file.getAbsolutePath());
-        Log.e("getRealFileName---->",file.getAbsolutePath());
+
+        Log.e("getRealFileName---->", file.getAbsolutePath());
         return downloadbean;
     }
 
@@ -285,14 +340,10 @@ public class DownloadManager {
     }
 
 
-
-
-
-
-
     //测试区-------------------------------------------------------------
     //    下载块大小
     private static final int chunk_size = 512 * 1024;
+
     private class DownloadSubscribe2 implements ObservableOnSubscribe<DownloadBean> {
         private DownloadBean downloadbean;
 
@@ -347,7 +398,7 @@ public class DownloadManager {
                         sink.flush();
                         bytesRead += chunk;
 
-                        Log.d("wdedu", "下载进度：bytesRead-->"+bytesRead);
+                        Log.d("wdedu", "下载进度：bytesRead-->" + bytesRead);
                     }
                     sink.flush();
                     sink.close();
@@ -357,5 +408,12 @@ public class DownloadManager {
             });
 
         }
+    }
+
+    //获得当前运行线程
+    public void getCurrentThread() {
+        long tID = Thread.currentThread().getId();
+        String tName = Thread.currentThread().getName();
+        Log.e("getCurrentThread", "tID:" + tID + "--tName:" + tName);
     }
 }

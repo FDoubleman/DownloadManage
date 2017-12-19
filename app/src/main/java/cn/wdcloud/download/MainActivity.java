@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int vID = view.getId();
         switch (vID) {
             case R.id.btn_start_1:
-                DownloadManager.getInstance().download(url1, new DownLoadObserver() {
+                DownloadManager.getInstance().addDownload(url1, new DownLoadObserver() {
                     @Override
                     public void onSubscribe(Disposable d) {
                         super.onSubscribe(d);
@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 });
                 break;
             case R.id.btn_start_2:
-                DownloadManager.getInstance().download(url2, new DownLoadObserver() {
+                DownloadManager.getInstance().addDownload(url2, new DownLoadObserver() {
                     @Override
                     public void onSubscribe(Disposable d) {
                         super.onSubscribe(d);
@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 });
                 break;
             case R.id.btn_start_3:
-                DownloadManager.getInstance().download(url3, new DownLoadObserver() {
+                DownloadManager.getInstance().addDownload(url3, new DownLoadObserver() {
                     @Override
                     public void onSubscribe(Disposable d) {
                         super.onSubscribe(d);
