@@ -351,6 +351,10 @@ public class DownloadManager {
      */
     private String getFileName(String url) {
         String fileName = url.substring(url.lastIndexOf("/"));
+        if(fileName.contains("?")){
+            fileName = fileName.replaceAll("[?]","p");
+            //fileName.replaceAll("/","p");
+        }
         return fileName;
     }
 

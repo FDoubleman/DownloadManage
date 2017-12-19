@@ -134,7 +134,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onComplete() {
                         super.onComplete();
-                        Log.e("onComplete:","下载成功："+downloadbean.getCurrentSize());
+                        if(downloadbean!=null){
+                            Log.e("onComplete:","下载成功："+downloadbean.getCurrentSize());
+                        }
+
                     }
                 });
                 break;
