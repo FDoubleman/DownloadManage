@@ -19,7 +19,6 @@ public class DownloadBean {
     private String filePath;//本地文件路径
     private String fileName;//文件名称
     private String startTime;//开始时间
-
     @Generated(hash = 13571938)
     public DownloadBean(Long id, String url, Long totalSize, Long currentSize,
             int progress, int status, String filePath, String fileName,
@@ -37,10 +36,10 @@ public class DownloadBean {
     @Generated(hash = 2040406903)
     public DownloadBean() {
     }
-    public long getId() {
+    public Long getId() {
         return this.id;
     }
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
     public String getUrl() {
@@ -49,16 +48,16 @@ public class DownloadBean {
     public void setUrl(String url) {
         this.url = url;
     }
-    public long getTotalSize() {
+    public Long getTotalSize() {
         return this.totalSize;
     }
-    public void setTotalSize(long totalSize) {
+    public void setTotalSize(Long totalSize) {
         this.totalSize = totalSize;
     }
-    public long getCurrentSize() {
+    public Long getCurrentSize() {
         return this.currentSize;
     }
-    public void setCurrentSize(long currentSize) {
+    public void setCurrentSize(Long currentSize) {
         this.currentSize = currentSize;
     }
     public int getProgress() {
@@ -90,15 +89,6 @@ public class DownloadBean {
     }
     public void setStartTime(String startTime) {
         this.startTime = startTime;
-    }
-    public void setId(Long id) {
-        this.id = id;
-    }
-    public void setTotalSize(Long totalSize) {
-        this.totalSize = totalSize;
-    }
-    public void setCurrentSize(Long currentSize) {
-        this.currentSize = currentSize;
     }
     
 }

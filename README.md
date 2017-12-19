@@ -20,5 +20,11 @@ RxJava和OkHttp 封装的下载控制管理
         下载中 ----->更新进度
         暂停、重新下载--->更新状态
 
+    4、马丹 数据库写好了  使用
+     DBInterface.getInstance().insertOrUpdate(downloadbean);
+     不管调用几次只能 插入一条。
+     想了半天  原来是数据库 使用问题：
+      @Id(autoincrement = true)
+         private Long id;  ------->是大写 不是小写的   private Long id;
 
 三、

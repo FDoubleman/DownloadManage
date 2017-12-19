@@ -62,8 +62,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         super.onNext(downloadbean);
                         Log.e("onNext1:","TotalSize:---"+downloadbean.getTotalSize()
                                 +"----CurrentSize----"+downloadbean.getCurrentSize());
-                        mBp1.setMax((int) downloadbean.getTotalSize());
-                        mBp1.setProgress((int) downloadbean.getCurrentSize());
+                        mBp1.setMax((int) downloadbean.getTotalSize().intValue());
+                        mBp1.setProgress((int) downloadbean.getCurrentSize().intValue());
                     }
 
                     @Override
@@ -92,8 +92,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         super.onNext(downloadbean);
                         Log.e("onNext2:","TotalSize:---"+downloadbean.getTotalSize()
                                 +"----CurrentSize----"+downloadbean.getCurrentSize());
-                        mBp2.setMax((int) downloadbean.getTotalSize());
-                        mBp2.setProgress((int) downloadbean.getCurrentSize());
+                        mBp2.setMax( downloadbean.getTotalSize().intValue());
+                        mBp2.setProgress(downloadbean.getCurrentSize().intValue());
                     }
 
                     @Override
@@ -105,7 +105,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onComplete() {
                         super.onComplete();
-
                         Log.e("onComplete:","下载成功："+downloadbean.getCurrentSize());
                     }
                 });
@@ -122,8 +121,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         super.onNext(downloadbean);
                         Log.e("onNext3:","TotalSize:---"+downloadbean.getTotalSize()
                                 +"----CurrentSize----"+downloadbean.getCurrentSize());
-                        mBp3.setMax((int) downloadbean.getTotalSize());
-                        mBp3.setProgress((int) downloadbean.getCurrentSize());
+                        mBp3.setMax( downloadbean.getTotalSize().intValue());
+                        mBp3.setProgress( downloadbean.getCurrentSize().intValue());
                     }
 
                     @Override

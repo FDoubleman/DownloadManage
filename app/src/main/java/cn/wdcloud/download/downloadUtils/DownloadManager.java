@@ -70,13 +70,7 @@ public class DownloadManager {
             Log.e("addDownload", "下载url错误!");
             return;
         }
-        //2、从数据库获得 判断是否下载过
-        DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
-        if (bean == null) {//已下载
 
-        } else {//未下载
-
-        }
 
         download(url, loadObserver);
     }
@@ -100,7 +94,7 @@ public class DownloadManager {
                 .map(new Function<DownloadBean, DownloadBean>() {//检测本地文件夹,生成新的文件名
                     @Override
                     public DownloadBean apply(DownloadBean downloadbean) throws Exception {
-                        return getRealFileName(downloadbean);
+                        return getFileName(downloadbean);
                     }
                 })
                 .flatMap(new Function<DownloadBean, ObservableSource<DownloadBean>>() {//下载
@@ -250,17 +244,38 @@ public class DownloadManager {
      * @return DownInfo
      */
     private DownloadBean createDownInfo(String url) {
-        DownloadBean downloadbean = new DownloadBean();
+        //1、从数据库获得 判断是否下载过
+        DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
+        if (bean != null) {//已下载
+            return bean;
+        } else {//未下载
+            DownloadBean downloadbean = new DownloadBean();
+            long contentLength = getContentLength(url);
+            String fileName = getFileName(url);
+            downloadbean.setUrl(url);
+            downloadbean.setTotalSize(contentLength);
+            downloadbean.setFileName(fileName);
+            downloadbean.setStatus(STATUS_WAITING);
 
-        long contentLength = getContentLength(url);
-        String fileName = getFileName(url);
+            return downloadbean;
+        }
+    }
 
-        downloadbean.setUrl(url);
-        downloadbean.setTotalSize(contentLength);
-        downloadbean.setFileName(fileName);
-        downloadbean.setStatus(STATUS_WAITING);
+    private DownloadBean getFileName(DownloadBean downloadbean){
+        long downloadLength = 0;
+        String fileName = downloadbean.getFileName();
+        String packagePath = MyApp.sContext
+                .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+        File file = new File(packagePath, fileName);
+        if (file.exists()) {
+            //找到了文件,代表已经下载过,则获取其长度
+            downloadLength = file.length();
+        }
+        downloadbean.setFilePath(file.getAbsolutePath());
+        //downloadbean.setCurrentSize(downloadLength);
         return downloadbean;
     }
+
 
     /**
      * 获得文件真正的下载地址
