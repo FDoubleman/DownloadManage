@@ -26,7 +26,12 @@
             android:layout_height="wrap_content"/>
         <Button
             android:id="@+id/btn_cancle_1"
-            android:text="取消"
+            android:text="暂停"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+        <Button
+            android:id="@+id/btn_delete_1"
+            android:text="删除"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
     </LinearLayout>
@@ -48,7 +53,12 @@
             android:layout_height="wrap_content"/>
         <Button
             android:id="@+id/btn_cancle_2"
-            android:text="取消"
+            android:text="暂停"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+        <Button
+            android:id="@+id/btn_delete_2"
+            android:text="删除"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
     </LinearLayout>
@@ -70,7 +80,12 @@
             android:layout_height="wrap_content"/>
         <Button
             android:id="@+id/btn_cancle_3"
-            android:text="取消"
+            android:text="暂停"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+        <Button
+            android:id="@+id/btn_delete_3"
+            android:text="删除"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
     </LinearLayout>

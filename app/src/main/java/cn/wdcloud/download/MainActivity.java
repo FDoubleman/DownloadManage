@@ -34,6 +34,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button btnCancle2 = (Button) findViewById(R.id.btn_cancle_2);
         Button btnCancle3 = (Button) findViewById(R.id.btn_cancle_3);
 
+        Button btnDelete1 = (Button) findViewById(R.id.btn_delete_1);
+        Button btnDelete2 = (Button) findViewById(R.id.btn_delete_2);
+        Button btnDelete3 = (Button) findViewById(R.id.btn_delete_3);
+
         btnStart1.setOnClickListener(this);
         btnStart2.setOnClickListener(this);
         btnStart3.setOnClickListener(this);
@@ -41,6 +45,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnCancle1.setOnClickListener(this);
         btnCancle2.setOnClickListener(this);
         btnCancle3.setOnClickListener(this);
+
+        btnDelete1.setOnClickListener(this);
+        btnDelete2.setOnClickListener(this);
+        btnDelete3.setOnClickListener(this);
     }
 
     private String url1 ="http://192.168.6.100:8082/group5/M00/13/06/wKgG0VoqBxqET16uAAAAAAAAAAA904.mov";
@@ -147,6 +155,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.btn_cancle_3:
                 DownloadManager.getInstance().pause(url3);
+                break;
+            case R.id.btn_delete_1:
+                DownloadManager.getInstance().delete(url1);
+                mBp1.setProgress(0);
+                break;
+            case R.id.btn_delete_2:
+                DownloadManager.getInstance().delete(url2);
+                mBp2.setProgress(0);
+                break;
+            case R.id.btn_delete_3:
+                DownloadManager.getInstance().delete(url3);
+                mBp3.setProgress(0);
                 break;
             default:
                 break;

@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
 
 import cn.wdcloud.download.MyApp;
 import cn.wdcloud.download.downloadUtils.db.DBInterface;
@@ -17,7 +18,9 @@ import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.ObservableSource;
+import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
@@ -70,7 +73,10 @@ public class DownloadManager {
             Log.e("addDownload", "下载url错误!");
             return;
         }
-
+        //正在下载的 无法再次添加下载
+        if (downCalls.containsKey(url)) {
+            return;
+        }
 
         download(url, loadObserver);
     }
@@ -94,7 +100,7 @@ public class DownloadManager {
                 .map(new Function<DownloadBean, DownloadBean>() {//检测本地文件夹,生成新的文件名
                     @Override
                     public DownloadBean apply(DownloadBean downloadbean) throws Exception {
-                        return getFileName(downloadbean);
+                        return applyDownload(downloadbean);
                     }
                 })
                 .flatMap(new Function<DownloadBean, ObservableSource<DownloadBean>>() {//下载
@@ -195,7 +201,7 @@ public class DownloadManager {
      */
     public void pause(String url) {
         stopDownload(url);
-        //TODO do else db
+        //do else db
         DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
         updataDownloadbean(bean, STATUS_PAUSE);
 
@@ -206,10 +212,41 @@ public class DownloadManager {
      *
      * @param url
      */
-    public void cancel(final String url) {
-        stopDownload(url);
-        //TODO do else db
-        DBInterface.getInstance().deleteByUrl(url);
+    public void delete(final String url) {
+        final String url1 =url;
+        //1、停止下载
+        stopDownload(url1);
+        //TODO 待优化---
+        Observable.timer(1, TimeUnit.SECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<Long>() {
+            @Override
+            public void onSubscribe(Disposable disposable) {
+
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+
+            }
+
+            @Override
+            public void onComplete() {
+                //2、删除数据库
+                DBInterface.getInstance().deleteByUrl(url1);
+                //3、删除本地文件
+                File file = new File(creatFilePath(url1));
+                if (file.exists()) {
+                    boolean isSuccess = file.delete();
+                    Log.e("删除下载",""+ isSuccess);
+                }
+            }
+        });
 
     }
 
@@ -252,30 +289,44 @@ public class DownloadManager {
             DownloadBean downloadbean = new DownloadBean();
             long contentLength = getContentLength(url);
             String fileName = getFileName(url);
+            String filePath = creatFilePath(url);
+
             downloadbean.setUrl(url);
             downloadbean.setTotalSize(contentLength);
             downloadbean.setFileName(fileName);
             downloadbean.setStatus(STATUS_WAITING);
-
+            downloadbean.setFilePath(filePath);
             return downloadbean;
         }
     }
 
-    private DownloadBean getFileName(DownloadBean downloadbean){
-        long downloadLength = 0;
-        String fileName = downloadbean.getFileName();
-        String packagePath = MyApp.sContext
-                .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
-        File file = new File(packagePath, fileName);
-        if (file.exists()) {
-            //找到了文件,代表已经下载过,则获取其长度
-            downloadLength = file.length();
-        }
-        downloadbean.setFilePath(file.getAbsolutePath());
-        //downloadbean.setCurrentSize(downloadLength);
+    /**
+     * 修改 DownloadBean
+     *
+     * @param downloadbean 修改前DownloadBean
+     * @return 修改后DownloadBean
+     */
+    private DownloadBean applyDownload(DownloadBean downloadbean) {
+        //TODO 修改 DownloadBean
         return downloadbean;
     }
 
+    /**
+     * 根据下载地址 返回文件路径
+     *
+     * @param url
+     * @return
+     */
+    private String creatFilePath(String url) {
+        //获得文件名
+        String fileName = getFileName(url);
+        //获得路径
+        String packagePath = MyApp.sContext
+                .getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
+        //创建文件
+        File file = new File(packagePath, fileName);
+        return file.getAbsolutePath();
+    }
 
     /**
      * 获得文件真正的下载地址
