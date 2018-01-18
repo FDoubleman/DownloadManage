@@ -21,6 +21,7 @@ import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
@@ -48,6 +49,8 @@ public class DownloadManager {
     //获取文件长度失败
     public static final long TOTAL_ERROR = -1;//获取进度失败
 
+    private static final int DEFULT_DOWNLOAD_NUM = 2;//默认的下载最大个数
+    private static int MAX_DOWNLOAD_NUM = DEFULT_DOWNLOAD_NUM;
     private static DownloadManager instance;
     private final BaseHttpClient mClient;
     //回调
@@ -67,7 +70,7 @@ public class DownloadManager {
         DBInterface.getInstance().initDBHelp();
     }
 
-    public void addDownload(String url, DownLoadObserver loadObserver) {
+    public void addDownload(String url, DownloadListener listener) {
         //1、校验url
         if (TextUtils.isEmpty(url) || !url.startsWith("http")) {
             Log.e("addDownload", "下载url错误!");
@@ -78,12 +81,16 @@ public class DownloadManager {
             return;
         }
 
-        download(url, loadObserver);
+        download(url, listener);
     }
 
+    private DownloadListener mListener;
 
-    public void download(String url, DownLoadObserver loadObserver) {
-
+    public void download(String url, DownloadListener listener) {
+        if (listener == null) {
+            return;
+        }
+        mListener = listener;
         Observable.just(url)
                 .filter(new Predicate<String>() {//call的map已经有了,就证明正在下载,则这次不下载
                     @Override
@@ -103,6 +110,13 @@ public class DownloadManager {
                         return applyDownload(downloadbean);
                     }
                 })
+                .filter(new Predicate<DownloadBean>() {//正在下载的数量是否大于最大下载量
+                    @Override
+                    public boolean test(DownloadBean bean) throws Exception {
+                        //返回true则表示数据满足条件，返回false则表示数据需要被过滤
+                        return downCalls.size() < MAX_DOWNLOAD_NUM;
+                    }
+                })
                 .flatMap(new Function<DownloadBean, ObservableSource<DownloadBean>>() {//下载
                     @Override
                     public ObservableSource<DownloadBean> apply(DownloadBean downloadbean) throws Exception {
@@ -110,15 +124,53 @@ public class DownloadManager {
                         //保存SubscribeMap
                         mSubscribeMap.put(downloadbean.getUrl(), subscribe);
                         //添加下载至数据库
-                        DBInterface.getInstance().insertOrUpdate(downloadbean);
+                        //DBInterface.getInstance().insertOrUpdate(downloadbean);
                         return Observable.create(subscribe);
                     }
                 })
                 .observeOn(AndroidSchedulers.mainThread())//在主线程回调
                 .subscribeOn(Schedulers.io())//在子线程执行
-                .subscribe(loadObserver);//添加观察者
+                .subscribe(new Consumer<DownloadBean>() {
+                    @Override
+                    public void accept(DownloadBean bean) throws Exception {
+                        Log.e("accept:",bean.toString());
+                    }
+                });//添加观察者
     }
 
+    public DownLoadObserver mObserver = new DownLoadObserver() {
+        @Override
+        public void onNext(DownloadBean downloadbean) {
+            super.onNext(downloadbean);
+            Log.e("onNext", downloadbean.toString());
+
+            //下载中
+            if (mListener != null && downloadbean != null) {
+                mListener.downloading(downloadbean);
+            }
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            super.onError(e);
+            Log.e("onError", downloadbean.toString());
+
+            //下载失败
+            if (mListener != null && downloadbean != null) {
+                mListener.error(downloadbean);
+            }
+        }
+
+        @Override
+        public void onComplete() {
+            super.onComplete();
+            Log.e("onComplete", downloadbean.toString());
+            //下载成功
+            if (mListener != null && downloadbean != null) {
+                mListener.success(downloadbean);
+            }
+        }
+    };
 
     private class DownloadSubscribe implements ObservableOnSubscribe<DownloadBean> {
         private DownloadBean downloadbean;
@@ -129,6 +181,8 @@ public class DownloadManager {
 
         public DownloadSubscribe(DownloadBean downloadbean) {
             this.downloadbean = downloadbean;
+            //开始下载
+            mListener.start(downloadbean.getUrl());
         }
 
         @Override
@@ -183,7 +237,7 @@ public class DownloadManager {
 
                 updataDownloadbean(downloadbean, STATUS_EXCAPTION);
                 DBInterface.getInstance().insertOrUpdate(downloadbean);
-
+                downCalls.remove(url);
             }
             //此时还是处于下载进行状态
             if (downloadbean.getStatus() == STATUS_RUNNING) {
@@ -205,6 +259,11 @@ public class DownloadManager {
         DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
         updataDownloadbean(bean, STATUS_PAUSE);
 
+        //暂停下载
+        if (mListener != null) {
+            mListener.stop(bean);
+        }
+
     }
 
     /**
@@ -213,42 +272,56 @@ public class DownloadManager {
      * @param url
      */
     public void delete(final String url) {
-        final String url1 =url;
+        final String url1 = url;
         //1、停止下载
         stopDownload(url1);
         //TODO 待优化---
         Observable.timer(1, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Observer<Long>() {
-            @Override
-            public void onSubscribe(Disposable disposable) {
+                    @Override
+                    public void onSubscribe(Disposable disposable) {
 
-            }
+                    }
 
-            @Override
-            public void onNext(Long aLong) {
+                    @Override
+                    public void onNext(Long aLong) {
 
-            }
+                    }
 
-            @Override
-            public void onError(Throwable throwable) {
+                    @Override
+                    public void onError(Throwable throwable) {
 
-            }
+                    }
 
-            @Override
-            public void onComplete() {
-                //2、删除数据库
-                DBInterface.getInstance().deleteByUrl(url1);
-                //3、删除本地文件
-                File file = new File(creatFilePath(url1));
-                if (file.exists()) {
-                    boolean isSuccess = file.delete();
-                    Log.e("删除下载",""+ isSuccess);
-                }
-            }
-        });
+                    @Override
+                    public void onComplete() {
+                        //2、删除数据库
+                        DBInterface.getInstance().deleteByUrl(url1);
+                        //3、删除本地文件
+                        File file = new File(creatFilePath(url1));
+                        if (file.exists()) {
+                            boolean isSuccess = file.delete();
+                            Log.e("删除下载", "" + isSuccess);
+                        }
+                    }
+                });
 
+        //取消下载
+        if (mListener != null) {
+            mListener.cancle(url1);
+        }
     }
+
+    /**
+     * 设置最大下载个数
+     *
+     * @param num
+     */
+    public void dowloadMaxNum(int num) {
+        MAX_DOWNLOAD_NUM = num;
+    }
+
 
     //停止下载
     private void stopDownload(String url) {
@@ -258,6 +331,13 @@ public class DownloadManager {
             subscribe.setStatus(STATUS_PAUSE);
         }
         mSubscribeMap.remove(url);
+
+        //移除call
+        Call call = downCalls.remove(url);
+        if (call != null) {
+            call.cancel();
+        }
+
     }
 
     /**
@@ -266,7 +346,7 @@ public class DownloadManager {
      * @param bean
      * @param status
      */
-    public void updataDownloadbean(DownloadBean bean, int status) {
+    private void updataDownloadbean(DownloadBean bean, int status) {
         if (bean == null) {
             return;
         }
@@ -290,12 +370,14 @@ public class DownloadManager {
             long contentLength = getContentLength(url);
             String fileName = getFileName(url);
             String filePath = creatFilePath(url);
+            String startTime = System.currentTimeMillis() + "";
 
             downloadbean.setUrl(url);
             downloadbean.setTotalSize(contentLength);
             downloadbean.setFileName(fileName);
             downloadbean.setStatus(STATUS_WAITING);
             downloadbean.setFilePath(filePath);
+            downloadbean.setStartTime(startTime);
             return downloadbean;
         }
     }
@@ -401,10 +483,31 @@ public class DownloadManager {
      * @return
      */
     private String getFileName(String url) {
-        String fileName = url.substring(url.lastIndexOf("/"));
+        String fileName = url.substring(url.lastIndexOf("/") + 1, url.length());
         return fileName;
     }
 
+
+    public interface DownloadListener {
+        //开始下载
+        void start(String url);
+
+        //暂停下载
+        void stop(DownloadBean downloadbean);
+
+        //取消下载
+        void cancle(String url);
+
+        //下载成功
+        void success(DownloadBean downloadbean);
+
+        //下载失败
+        void error(DownloadBean downloadbean);
+
+        //下载中
+        void downloading(DownloadBean downloadbean);
+
+    }
 
     //测试区-------------------------------------------------------------
     //    下载块大小

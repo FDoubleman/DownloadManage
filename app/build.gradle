@@ -16,23 +16,29 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    dataBinding {
+        enabled = true
+    }
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:appcompat-v7:26.1.0'
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-
     //OKHttp
     compile 'com.squareup.okhttp3:okhttp:3.6.0'
     //RxJava和RxAndroid 用来做线程切换的
     compile 'io.reactivex.rxjava2:rxandroid:2.0.1'
     compile 'io.reactivex.rxjava2:rxjava:2.0.1'
     // 下载数据库 greendao
-    compile 'org.greenrobot:greendao:3.2.2' // add library
+    compile 'org.greenrobot:greendao:3.2.2'
+    // add library
     //数据库
     compile 'com.facebook.stetho:stetho:1.5.0'
+    implementation 'com.android.support:recyclerview-v7:26.1.0'
+    compile 'com.github.bumptech.glide:glide:3.5.2'
+    implementation 'com.android.support:design:26.1.0'
 }

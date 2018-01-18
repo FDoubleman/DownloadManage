@@ -90,5 +90,17 @@ public class DownloadBean {
     public void setStartTime(String startTime) {
         this.startTime = startTime;
     }
-    
+
+    @Override
+    public String toString() {
+        return "DownloadBean{" +
+                "id=" + id +
+                ", totalSize=" + totalSize +
+                ", currentSize=" + currentSize +
+                ", status=" + status +
+                ", filePath='" + filePath + '\'' +
+                ", fileName='" + fileName + '\'' +
+                ", startTime='" + startTime + '\'' +
+                '}';
+    }
 }
