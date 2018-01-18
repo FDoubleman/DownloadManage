@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/DownloadManage.iml" filepath="$PROJECT_DIR$/.idea/DownloadManage.iml" />
+      <module fileurl="file://$PROJECT_DIR$/DownLoad.iml" filepath="$PROJECT_DIR$/DownLoad.iml" />
+      <module fileurl="file://D:\Project_Demo\DownLoad\.idea\DownloadManage.iml" filepath="D:\Project_Demo\DownLoad\.idea\DownloadManage.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>
