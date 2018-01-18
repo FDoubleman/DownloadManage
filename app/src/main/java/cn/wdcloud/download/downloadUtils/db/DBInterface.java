@@ -159,7 +159,10 @@ public class DBInterface {
         return query.list();
     }
 
-
+    /**
+     * 查询是否 存在等待的下载 添加时间最早的
+     * @return DownloadBean
+     */
     public DownloadBean qureFistWaiting(){
         DownloadBeanDao dao = openReadAbleDb().getDownloadBeanDao();
         DownloadBean bean =dao.queryBuilder()

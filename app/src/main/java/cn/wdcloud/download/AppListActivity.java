@@ -19,8 +19,6 @@ import java.util.List;
 
 import cn.wdcloud.download.databinding.ActivityAppListBinding;
 import cn.wdcloud.download.databinding.ViewHolderAppItemBinding;
-import cn.wdcloud.download.downloadUtils.DownloadManager;
-import cn.wdcloud.download.downloadUtils.db.DownloadBean;
 import io.reactivex.disposables.Disposable;
 
 /**
@@ -202,38 +200,7 @@ public class AppListActivity extends AppCompatActivity {
 
         private void start() {
             //RxDownload.INSTANCE.start(customMission).subscribe();
-            DownloadManager.getInstance().addDownload(customMission.getUrl(), new DownloadManager.DownloadListener() {
-                @Override
-                public void start(String url) {
 
-                }
-
-                @Override
-                public void stop(DownloadBean downloadbean) {
-
-                }
-
-                @Override
-                public void cancle(String url) {
-
-                }
-
-                @Override
-                public void success(DownloadBean downloadbean) {
-
-                }
-
-                @Override
-                public void error(DownloadBean downloadbean) {
-
-                }
-
-                @Override
-                public void downloading(DownloadBean downloadbean) {
-                    binding.progressBar2.setMax((int) downloadbean.getTotalSize().intValue());
-                    binding.progressBar2.setProgress((int) downloadbean.getCurrentSize().intValue());
-                }
-            });
         }
 
         private void stop() {

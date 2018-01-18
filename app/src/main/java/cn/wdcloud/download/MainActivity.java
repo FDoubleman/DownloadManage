@@ -13,6 +13,7 @@ import cn.wdcloud.download.downloadUtils.db.DownloadBean;
 import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Predicate;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
@@ -21,6 +22,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ProgressBar mBp2;
     private ProgressBar mBp3;
     private Button btnApplist;
+    private Button mBtnStart1;
+    private Button mBtnStart2;
+    private Button mBtnStart3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,9 +35,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mBp3 = (ProgressBar) findViewById(R.id.pb_3);
         btnApplist = (Button) findViewById(R.id.btn_applist);
 
-        Button btnStart1 = (Button) findViewById(R.id.btn_start_1);
-        Button btnStart2 = (Button) findViewById(R.id.btn_start_2);
-        Button btnStart3 = (Button) findViewById(R.id.btn_start_3);
+        mBtnStart1 = (Button) findViewById(R.id.btn_start_1);
+        mBtnStart2 = (Button) findViewById(R.id.btn_start_2);
+        mBtnStart3 = (Button) findViewById(R.id.btn_start_3);
 
         Button btnCancle1 = (Button) findViewById(R.id.btn_cancle_1);
         Button btnCancle2 = (Button) findViewById(R.id.btn_cancle_2);
@@ -43,9 +47,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Button btnDelete2 = (Button) findViewById(R.id.btn_delete_2);
         Button btnDelete3 = (Button) findViewById(R.id.btn_delete_3);
 
-        btnStart1.setOnClickListener(this);
-        btnStart2.setOnClickListener(this);
-        btnStart3.setOnClickListener(this);
+        mBtnStart1.setOnClickListener(this);
+        mBtnStart2.setOnClickListener(this);
+        mBtnStart3.setOnClickListener(this);
 
         btnCancle1.setOnClickListener(this);
         btnCancle2.setOnClickListener(this);
@@ -66,13 +70,91 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int vID = view.getId();
         switch (vID) {
             case R.id.btn_start_1:
-                DownloadManager.getInstance().addDownload(url1, new DownloadLinstanerImp());
+                mBtnStart1.setText("等待中");
+                DownloadManager.getInstance().addDownload(url1, new Consumer<DownloadBean>() {
+                    @Override
+                    public void accept(DownloadBean bean) throws Exception {
+                        mBp1.setMax((int) bean.getTotalSize().intValue());
+                        mBp1.setProgress((int) bean.getCurrentSize().intValue());
+
+                        String staus ="等待";
+                        switch (bean.getStatus()){
+                            case DownloadManager.STATUS_WAITING:
+                                staus ="等待";
+                                break;
+                            case DownloadManager.STATUS_RUNNING:
+                                staus ="下载中";
+                                break;
+                            case DownloadManager.STATUS_PAUSE:
+                                staus ="暂停";
+                                break;
+                            case DownloadManager.STATUS_SUCCESS:
+                                staus ="成功";
+                                break;
+                        }
+                        mBtnStart1.setText(staus);
+
+                        Log.e("accept1",bean.toString());
+                    }
+                });
                 break;
             case R.id.btn_start_2:
-                DownloadManager.getInstance().addDownload(url2, new DownloadLinstanerImp());
+                mBtnStart2.setText("等待中");
+                DownloadManager.getInstance().addDownload(url2, new Consumer<DownloadBean>() {
+                    @Override
+                    public void accept(DownloadBean bean) throws Exception {
+                        mBp2.setMax((int) bean.getTotalSize().intValue());
+                        mBp2.setProgress((int) bean.getCurrentSize().intValue());
+
+                        String staus ="等待";
+                        switch (bean.getStatus()){
+                            case DownloadManager.STATUS_WAITING:
+                                staus ="等待";
+                                break;
+                            case DownloadManager.STATUS_RUNNING:
+                                staus ="下载中";
+                                break;
+                            case DownloadManager.STATUS_PAUSE:
+                                staus ="暂停";
+                                break;
+                            case DownloadManager.STATUS_SUCCESS:
+                                staus ="成功";
+                                break;
+                        }
+                        mBtnStart2.setText(staus);
+
+                        Log.e("accept2",bean.toString());
+                    }
+                });
                 break;
             case R.id.btn_start_3:
-                DownloadManager.getInstance().addDownload(url3, new DownloadLinstanerImp());
+                mBtnStart3.setText("等待中");
+                DownloadManager.getInstance().addDownload(url3, new Consumer<DownloadBean>() {
+                    @Override
+                    public void accept(DownloadBean bean) throws Exception {
+                        mBp3.setMax((int) bean.getTotalSize().intValue());
+                        mBp3.setProgress((int) bean.getCurrentSize().intValue());
+
+                        String staus ="等待";
+                        switch (bean.getStatus()){
+                            case DownloadManager.STATUS_WAITING:
+                                staus ="等待";
+                                break;
+                            case DownloadManager.STATUS_RUNNING:
+                                staus ="下载中";
+                                break;
+                            case DownloadManager.STATUS_PAUSE:
+                                staus ="暂停";
+                                break;
+                            case DownloadManager.STATUS_SUCCESS:
+                                staus ="成功";
+                                break;
+                        }
+                        mBtnStart3.setText(staus);
+
+                        Log.e("accept3",bean.toString());
+                    }
+                });
                 break;
 
             case R.id.btn_cancle_1:
@@ -95,7 +177,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btn_delete_3:
                 DownloadManager.getInstance().delete(url3);
                 mBp3.setProgress(0);
-//                textFilter();
                 break;
             case R.id.btn_applist:
 
@@ -106,51 +187,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public class DownloadLinstanerImp implements DownloadManager.DownloadListener {
-        @Override
-        public void start(String url) {
-
-        }
-
-        @Override
-        public void stop(DownloadBean downloadbean) {
-
-        }
-
-        @Override
-        public void cancle(String url) {
-
-        }
-
-        @Override
-        public void success(DownloadBean downloadbean) {
-
-        }
-
-        @Override
-        public void error(DownloadBean downloadbean) {
-
-        }
-
-        @Override
-        public void downloading(DownloadBean downloadbean) {
-            Log.e("onNext1:", "TotalSize:---" + downloadbean.getTotalSize()
-                    + "----CurrentSize----" + downloadbean.getCurrentSize());
-
-            if (downloadbean.getUrl().equals(url1)) {
-                mBp1.setMax((int) downloadbean.getTotalSize().intValue());
-                mBp1.setProgress((int) downloadbean.getCurrentSize().intValue());
-            } else if (downloadbean.getUrl().equals(url2)) {
-                mBp2.setMax((int) downloadbean.getTotalSize().intValue());
-                mBp2.setProgress((int) downloadbean.getCurrentSize().intValue());
-            } else if (downloadbean.getUrl().equals(url3)) {
-                mBp3.setMax((int) downloadbean.getTotalSize().intValue());
-                mBp3.setProgress((int) downloadbean.getCurrentSize().intValue());
-            }
-
-
-        }
-    }
 
 
     public void textFilter() {

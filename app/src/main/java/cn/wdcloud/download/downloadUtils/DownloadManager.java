@@ -4,6 +4,7 @@ import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -40,12 +41,12 @@ import okio.Okio;
 
 public class DownloadManager {
     //下载状态
-    private static final int STATUS_SUCCESS = 1;//成功
-    private static final int STATUS_FAILURE = 0;//失败
-    private static final int STATUS_RUNNING = 2;//下载中
-    private static final int STATUS_WAITING = 3;//等待
-    private static final int STATUS_PAUSE = 4;//暂停下载
-    private static final int STATUS_EXCAPTION = -1;//异常
+    public static final int STATUS_SUCCESS = 1;//成功
+    public static final int STATUS_FAILURE = 0;//失败
+    public static final int STATUS_RUNNING = 2;//下载中
+    public static final int STATUS_WAITING = 3;//等待
+    public static final int STATUS_PAUSE = 4;//暂停下载
+    public static final int STATUS_EXCAPTION = -1;//异常
     //获取文件长度失败
     public static final long TOTAL_ERROR = -1;//获取进度失败
 
@@ -54,9 +55,9 @@ public class DownloadManager {
     private static DownloadManager instance;
     private final BaseHttpClient mClient;
     //回调
-    private HashMap<String, Call> downCalls = new HashMap<>();
-    private HashMap<String, DownloadSubscribe> mSubscribeMap = new HashMap<>();
-
+    private HashMap<String, Call> downCalls = new HashMap<>(); //1、取消下载 2、获得当前下载任务个数时 使用
+    private HashMap<String, DownloadSubscribe> mSubscribeMap = new HashMap<>();//修改下载状态使用
+    private HashMap<String,Consumer<DownloadBean>> mConsumerHashMap = new HashMap<>();//等待下载回调
     public static DownloadManager getInstance() {
         if (instance == null) {
             instance = new DownloadManager();
@@ -70,27 +71,34 @@ public class DownloadManager {
         DBInterface.getInstance().initDBHelp();
     }
 
-    public void addDownload(String url, DownloadListener listener) {
+    public void addDownload(String url, Consumer<DownloadBean> consumer) {
         //1、校验url
         if (TextUtils.isEmpty(url) || !url.startsWith("http")) {
             Log.e("addDownload", "下载url错误!");
             return;
         }
-        //正在下载的 无法再次添加下载
-        if (downCalls.containsKey(url)) {
+        //TODO 正在下载和等待下载  无法再次添加下载
+        DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
+        if (bean != null && bean.getStatus() != STATUS_WAITING && bean.getStatus() == STATUS_RUNNING) {
             return;
         }
 
-        download(url, listener);
+        //添加 Consumer
+        if(mConsumerHashMap.containsKey(url)){
+            consumer = mConsumerHashMap.get(url);
+        }else{
+            mConsumerHashMap.put(url,consumer);
+        }
+
+        download(url, consumer);
     }
 
-    private DownloadListener mListener;
 
-    public void download(String url, DownloadListener listener) {
-        if (listener == null) {
+    public void download(String url, Consumer<DownloadBean> consumer) {
+        if (consumer == null) {
             return;
         }
-        mListener = listener;
+
         Observable.just(url)
                 .filter(new Predicate<String>() {//call的map已经有了,就证明正在下载,则这次不下载
                     @Override
@@ -104,10 +112,10 @@ public class DownloadManager {
                         return Observable.just(createDownInfo(s));
                     }
                 })
-                .map(new Function<DownloadBean, DownloadBean>() {//检测本地文件夹,生成新的文件名
+                .map(new Function<DownloadBean, DownloadBean>() {//保存数据库
                     @Override
                     public DownloadBean apply(DownloadBean downloadbean) throws Exception {
-                        return applyDownload(downloadbean);
+                        return saveDB(downloadbean);
                     }
                 })
                 .filter(new Predicate<DownloadBean>() {//正在下载的数量是否大于最大下载量
@@ -130,47 +138,9 @@ public class DownloadManager {
                 })
                 .observeOn(AndroidSchedulers.mainThread())//在主线程回调
                 .subscribeOn(Schedulers.io())//在子线程执行
-                .subscribe(new Consumer<DownloadBean>() {
-                    @Override
-                    public void accept(DownloadBean bean) throws Exception {
-                        Log.e("accept:",bean.toString());
-                    }
-                });//添加观察者
+                .subscribe(consumer);//添加观察者
     }
 
-    public DownLoadObserver mObserver = new DownLoadObserver() {
-        @Override
-        public void onNext(DownloadBean downloadbean) {
-            super.onNext(downloadbean);
-            Log.e("onNext", downloadbean.toString());
-
-            //下载中
-            if (mListener != null && downloadbean != null) {
-                mListener.downloading(downloadbean);
-            }
-        }
-
-        @Override
-        public void onError(Throwable e) {
-            super.onError(e);
-            Log.e("onError", downloadbean.toString());
-
-            //下载失败
-            if (mListener != null && downloadbean != null) {
-                mListener.error(downloadbean);
-            }
-        }
-
-        @Override
-        public void onComplete() {
-            super.onComplete();
-            Log.e("onComplete", downloadbean.toString());
-            //下载成功
-            if (mListener != null && downloadbean != null) {
-                mListener.success(downloadbean);
-            }
-        }
-    };
 
     private class DownloadSubscribe implements ObservableOnSubscribe<DownloadBean> {
         private DownloadBean downloadbean;
@@ -181,19 +151,14 @@ public class DownloadManager {
 
         public DownloadSubscribe(DownloadBean downloadbean) {
             this.downloadbean = downloadbean;
-            //开始下载
-            mListener.start(downloadbean.getUrl());
         }
 
         @Override
-        public void subscribe(ObservableEmitter<DownloadBean> e) throws Exception {
+        public void subscribe(ObservableEmitter<DownloadBean> emitter) throws Exception {
             String url = downloadbean.getUrl();
             long downloadLength = downloadbean.getCurrentSize();//已经下载好的长度
             long contentLength = downloadbean.getTotalSize();//文件的总长度
-            //初始进度信息
-            e.onNext(downloadbean);
 
-            updataDownloadbean(downloadbean, STATUS_RUNNING);
 
             Request request = new Request.Builder()
                     //确定下载的范围,添加此头,则服务器就可以跳过已经下载好的部分
@@ -204,47 +169,56 @@ public class DownloadManager {
             downCalls.put(url, call);//把这个添加到call里,方便取消
             Response response = call.execute();
 
+
             File file = new File(downloadbean.getFilePath());
             InputStream is = null;
             FileOutputStream fileOutputStream = null;
             try {
-                is = response.body().byteStream();
-                fileOutputStream = new FileOutputStream(file, true);
-                byte[] buffer = new byte[2048];//缓冲数组2kB
-                int len;
-                while ((len = is.read(buffer)) != -1) {
-                    fileOutputStream.write(buffer, 0, len);
-                    downloadLength += len;
-                    downloadbean.setCurrentSize(downloadLength);
-                    //更新数据库
-                    DBInterface.getInstance().insertOrUpdate(downloadbean);
-                    if (downloadbean.getStatus() == STATUS_PAUSE) {//暂停
-                        //跳出循环
-                        break;
+                try {
+                    //初始进度信息  初始化下载开始下载
+                    updataDownloadbean(downloadbean, STATUS_RUNNING);
+                    emitter.onNext(downloadbean);
+
+                    is = response.body().byteStream();
+                    fileOutputStream = new FileOutputStream(file, true);
+                    byte[] buffer = new byte[2048];//缓冲数组2kB
+                    int len;
+                    while ((len = is.read(buffer)) != -1) {
+                        fileOutputStream.write(buffer, 0, len);
+                        downloadLength += len;
+                        downloadbean.setCurrentSize(downloadLength);
+                        //更新数据库
+                        DBInterface.getInstance().insertOrUpdate(downloadbean);
+                        emitter.onNext(downloadbean);
+                        if (downloadbean.getStatus() == STATUS_PAUSE) {//修改暂停状态
+                            //跳出循环
+                            break;
+                        }
                     }
-                    e.onNext(downloadbean);
+                    fileOutputStream.flush();
+                } finally {
+                    //关闭IO流
+                    IOUtil.closeAll(is, fileOutputStream, response);
                 }
-                fileOutputStream.flush();
-
-                //暂停下载
-                if (downloadbean.getStatus() == STATUS_PAUSE) {
-                    call.cancel();//取消
+                //此时还是处于下载进行状态
+                if (downloadbean.getStatus() == STATUS_RUNNING) {
+                    updataDownloadbean(downloadbean, STATUS_SUCCESS);
+                    DBInterface.getInstance().insertOrUpdate(downloadbean);
+                    //发送下载成功状态
+                    emitter.onNext(downloadbean);
+                    downCalls.remove(url);
+                    mConsumerHashMap.remove(url);
                 }
-                downCalls.remove(url);
-            } finally {
-                //关闭IO流
-                IOUtil.closeAll(is, fileOutputStream);
 
+                emitter.onComplete();
+                //检查等待下载
+                checkWaitingStaus();
+            } catch (IOException e) {
+                //下载异常状态
                 updataDownloadbean(downloadbean, STATUS_EXCAPTION);
                 DBInterface.getInstance().insertOrUpdate(downloadbean);
-                downCalls.remove(url);
+                emitter.onError(e);
             }
-            //此时还是处于下载进行状态
-            if (downloadbean.getStatus() == STATUS_RUNNING) {
-                updataDownloadbean(downloadbean, STATUS_SUCCESS);
-                DBInterface.getInstance().insertOrUpdate(downloadbean);
-            }
-            e.onComplete();
         }
     }
 
@@ -255,14 +229,6 @@ public class DownloadManager {
      */
     public void pause(String url) {
         stopDownload(url);
-        //do else db
-        DownloadBean bean = DBInterface.getInstance().qureByUrl(url);
-        updataDownloadbean(bean, STATUS_PAUSE);
-
-        //暂停下载
-        if (mListener != null) {
-            mListener.stop(bean);
-        }
 
     }
 
@@ -306,11 +272,6 @@ public class DownloadManager {
                         }
                     }
                 });
-
-        //取消下载
-        if (mListener != null) {
-            mListener.cancle(url1);
-        }
     }
 
     /**
@@ -354,6 +315,16 @@ public class DownloadManager {
         DBInterface.getInstance().insertOrUpdate(bean);
     }
 
+    //检查是否有等待状态 如果有开始下载
+    private void checkWaitingStaus() {
+        DownloadBean bean = DBInterface.getInstance().qureFistWaiting();
+        if (bean == null) {
+            return;
+        }
+        addDownload(bean.getUrl(),null);
+    }
+
+
     /**
      * 创建DownInfo
      *
@@ -383,13 +354,14 @@ public class DownloadManager {
     }
 
     /**
-     * 修改 DownloadBean
-     *
-     * @param downloadbean 修改前DownloadBean
-     * @return 修改后DownloadBean
+     * 插入或者更新一个
+     * @param downloadbean
+     * @return
      */
-    private DownloadBean applyDownload(DownloadBean downloadbean) {
-        //TODO 修改 DownloadBean
+    private DownloadBean saveDB(DownloadBean downloadbean) {
+        //添加下载至数据库
+        updataDownloadbean(downloadbean,STATUS_WAITING);
+
         return downloadbean;
     }
 
@@ -487,27 +459,6 @@ public class DownloadManager {
         return fileName;
     }
 
-
-    public interface DownloadListener {
-        //开始下载
-        void start(String url);
-
-        //暂停下载
-        void stop(DownloadBean downloadbean);
-
-        //取消下载
-        void cancle(String url);
-
-        //下载成功
-        void success(DownloadBean downloadbean);
-
-        //下载失败
-        void error(DownloadBean downloadbean);
-
-        //下载中
-        void downloading(DownloadBean downloadbean);
-
-    }
 
     //测试区-------------------------------------------------------------
     //    下载块大小
